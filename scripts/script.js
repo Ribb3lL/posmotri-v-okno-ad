@@ -1,8 +1,8 @@
 /* КОНФИГ */
 const preloaderWaitindTime = 1200;
 const cardsOnPage = 5;
-const BASE_URL = 'https://v-content.practicum-team.ru';
-const endpoint = `${BASE_URL}/api/videos?pagination[pageSize]=${cardsOnPage}&`;
+const BASE_URL = '';
+const endpoint = '';
 
 /* ЭЛЕМЕНТЫ СТРАНИЦЫ */
 const cardsList = document.querySelector('.content__list');
@@ -22,13 +22,86 @@ const moreButtonTmp = document.querySelector('.more-button-template');
 // Нужен для работы с переключателями
 let cardsOnPageState = [];
 
-// Первая загрузка ✅
+// База данных трасс Формулы-1
+const f1TracksDatabase = [
+  {
+    id: 1,
+    city: 'Италия',
+    description: 'Monza - самая скоростная трасса, известная как "Храм скорости"',
+    video: {
+      url: 'https://auto.vercity.ru/img/news/old/10133.jpg',
+    },
+    poster: {
+      url: 'https://auto.vercity.ru/img/news/old/10133.jpg',
+    },
+    thumbnail: {
+      url: 'https://auto.vercity.ru/img/news/old/10133.jpg',
+    },
+  },
+  {
+    id: 2,
+    city: 'Монако',
+    description: 'Monte Carlo - самая медленная и узкая городская трасса',
+    video: {
+      url: 'https://wikiway.com/upload/iblock/334/vpdjcey6z9ft36mkj1463gzr7vd8wf1l/Fairmont-Monte-Carlo-2.jpg',
+    },
+    poster: {
+      url: 'https://wikiway.com/upload/iblock/334/vpdjcey6z9ft36mkj1463gzr7vd8wf1l/Fairmont-Monte-Carlo-2.jpg',
+    },
+    thumbnail: {
+      url: 'https://wikiway.com/upload/iblock/334/vpdjcey6z9ft36mkj1463gzr7vd8wf1l/Fairmont-Monte-Carlo-2.jpg',
+    },
+  },
+  {
+    id: 3,
+    city: 'Британия',
+    description: 'Silverstone - бывший аэродром, принявший первую гонку в истории Формулы-1',
+    video: {
+      url: 'https://f1report.ru/img/fotos/2016/07/f1-1468027861.jpg',
+    },
+    poster: {
+      url: 'https://f1report.ru/img/fotos/2016/07/f1-1468027861.jpg',
+    },
+    thumbnail: {
+      url: 'https://f1report.ru/img/fotos/2016/07/f1-1468027861.jpg',
+    },
+  },
+  {
+    id: 4,
+    city: 'Бельгия',
+    description: 'SPA — одна из самых длинных трасс со знаменитым перепадом высот',
+    video: {
+      url: 'https://static.tildacdn.com/tild3936-3633-4536-b934-363336653333/4.jpg',
+    },
+    poster: {
+      url: 'https://static.tildacdn.com/tild3936-3633-4536-b934-363336653333/4.jpg',
+    },
+    thumbnail: {
+      url: 'https://static.tildacdn.com/tild3936-3633-4536-b934-363336653333/4.jpg',
+    },
+  },
+  {
+    id: 5,
+    city: 'Япония',
+    description: 'Suzuka - уникальная скоростная трасса в форме восьмерки',
+    video: {
+      url: 'https://cs14.pikabu.ru/post_img/big/2023/09/21/8/1695301102249716138.jpg',
+    },
+    poster: {
+      url: 'https://cs14.pikabu.ru/post_img/big/2023/09/21/8/1695301102249716138.jpg',
+    },
+    thumbnail: {
+      url: 'https://cs14.pikabu.ru/post_img/big/2023/09/21/8/1695301102249716138.jpg',
+    },
+  },
+];
 
+// Первая загрузка ✅
 showPreloader(preloaderTmp, videoContainer);
 showPreloader(preloaderTmp, cardsContainer);
 mainMechanics(endpoint);
 
-// осуществляется поиск ✅
+// Осуществляется поиск ✅
 form.onsubmit = (e) => {
   e.preventDefault();
 
@@ -59,7 +132,21 @@ form.onsubmit = (e) => {
 
 async function mainMechanics(endpoint) {
   try {
-    const data = await (await fetch(endpoint)).json();
+    // Фильтрация локальных данных в обход недоступного сервера
+    const formData = serializeFormData(form);
+    const filteredTracks = f1TracksDatabase.filter((item) => {
+      if (!formData.city) return true;
+      return item.city.toLowerCase().includes(formData.city.toLowerCase());
+    });
+
+    const data = {
+      results: filteredTracks,
+      pagination: {
+        page: 1,
+        pageCount: 1,
+      },
+    };
+
     cardsOnPageState = data.results;
 
     if (!data?.results?.[0]) {
@@ -79,9 +166,11 @@ async function mainMechanics(endpoint) {
       videoUrl: data.results[0].video.url,
       posterUrl: data.results[0].poster.url,
     });
+
     document
       .querySelectorAll('.content__card-link')[0]
       .classList.add('content__card-link_current');
+
     await waitForReadyVideo(videoElement);
     await delay(preloaderWaitindTime);
     removePreloader(videoContainer, '.preloader');
@@ -122,18 +211,21 @@ async function mainMechanics(endpoint) {
 /* УТИЛИТЫ */
 
 // Простой промис, чтобы легче ставить паузу ✅
-
 async function delay(ms) {
   return await new Promise((resolve) => {
     return setTimeout(resolve, ms);
   });
 }
 
-// Промис, который резолвится, если видео целиком готово к проинрыванию без пауз
-
+// Промис, который резолвится, если видео готово к проигрыванию
 async function waitForReadyVideo(video) {
   return await new Promise((resolve) => {
+    if (video.readyState >= 3) {
+      return resolve();
+    }
     video.oncanplaythrough = resolve;
+    video.onerror = resolve; // Страховка от зависания интерфейса
+    setTimeout(resolve, 1500); // Таймаут, чтобы плеер не блокировал экран
   });
 }
 
@@ -173,15 +265,14 @@ function appendCards({ baseUrl, dataArray, cardTmp, container }) {
   console.log('Сгенерировал карточки');
 }
 
-// Устанавливет внужное видео в контейнер ✅
+// Устанавливает нужное видео в контейнер ✅
 function setVideo({ baseUrl, video, videoUrl, posterUrl }) {
   video.setAttribute('src', `${baseUrl}${videoUrl}`);
   video.setAttribute('poster', `${baseUrl}${posterUrl}`);
   console.log('Подставил видео в основной блок');
 }
 
-// получает данные из формы и сериализует как надо ✅
-
+// Получает данные из формы и сериализует как надо ✅
 function serializeFormData(form) {
   const city = form.querySelector('input[name="city"]');
   const checkboxes = form.querySelectorAll('input[name="time"]');
@@ -191,7 +282,7 @@ function serializeFormData(form) {
   }, []);
   console.log('Собрал данные формы в объект');
   return {
-    city: city.value,
+    city: city ? city.value.trim() : '',
     timeArray: checkedValuesArray,
   };
 }
@@ -210,7 +301,7 @@ function generateFilterRequest(endpoint, city, timeArray) {
   return endpoint;
 }
 
-// переключает текущее видео ✅
+// Переключает текущее видео ✅
 function chooseCurrentVideo({
   baseUrl,
   videoData,
@@ -246,16 +337,15 @@ function chooseCurrentVideo({
   }
 }
 
-// вывожу интерфейс, когда видео не найдено ✅
+// Вывожу интерфейс, когда видео не найдено ✅
 function showError(container, errorTemplate, errorMessage) {
   const node = errorTemplate.content.cloneNode(true);
   node.querySelector('.error__title').textContent = errorMessage;
   container.append(node);
-  console.log('показал, ошибку');
+  console.log('показал ошибку');
 }
 
-// вывожу больше видео, если в пагинации больше страниц, чем показано
-
+// Вывожу больше видео, если в пагинации больше страниц, чем показано
 function showMoreCards({
   dataArray,
   buttonTemplate,
@@ -266,13 +356,14 @@ function showMoreCards({
   cardTmp,
 }) {
   if (dataArray.pagination.page === dataArray.pagination.pageCount) return;
-  // добавить кнопку из темплейта в конец списка карточек
+
   const button = buttonTemplate.content.cloneNode(true);
   cardsContainer.append(button);
-  // Выберем добавленный элемент по селектору и добавим слушатель клика
+
   const buttonInDOM = cardsContainer.querySelector(buttonSelector);
+  if (!buttonInDOM) return;
+
   buttonInDOM.addEventListener('click', async () => {
-    // по клику запросим данные для следующей страницы
     let currentPage = dataArray.pagination.page;
     let urlToFetch = `${initialEndpoint}pagination[page]=${(currentPage += 1)}&`;
     try {
